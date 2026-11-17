@@ -9,9 +9,9 @@ tiny-chess-01 bounty (strongest engine in 4 KB, $500).
 
 ## Files
 
-- `main.py` — the entrypoint (3,448 bytes, LZMA-packed by `makefun compress`).
+- `main.py` — the entrypoint (3,492 bytes, LZMA-packed by `makefun compress`).
   Run it with `MAKEFUN_ENV_URL` set; it plays the trial protocol over HTTP.
-  The readable source it was packed from (`engine.py`, 8,228 bytes) is the
+  The readable source it was packed from (`engine.py`, 8,363 bytes) is the
   build source recorded in `~/.makefun/compress.json` and sent with the
   submission bundle; it is not part of the committed tree (the tree cap is
   8,192 bytes). `main.py` is self-contained and imports nothing.
@@ -19,16 +19,18 @@ tiny-chess-01 bounty (strongest engine in 4 KB, $500).
 ## Engine
 
 - 0x88 board, Zobrist keys, move as a single int.
-- Search: PVS + LMR, null-move pruning (R=2), check extensions,
-  quiescence over captures/promotions (all evasions in check),
-  transposition table (300k entries), 2 killers/ply + history heuristic,
+- Search: PVS + LMR (up to 2 plies at depth ≥ 6), null-move pruning (R=2),
+  check extensions, quiescence over captures/promotions (all evasions in
+  check) with delta pruning, transposition table (300k entries, replaced
+  only by equal-or-deeper entries, cleared only between moves),
+  2 killers/ply + history heuristic,
   repetition (game history + search path) and fifty-move / insufficient-
   material draws inside the search.
 - Eval: material + positional terms (pawn advance/centre, knight/bishop
   centralisation, rook open & semi-open files + 7th rank, queen centre,
   bishop pair, king pawn-shelter in the middlegame / centralisation in
   the endgame, endgame switch at non-pawn material ≤ 1300).
-- Deterministic: fixed 60,000-node budget per move, never a clock.
+- Deterministic: fixed 80,000-node budget per move, never a clock.
   Replaying a trial reproduces the same games move for move.
 - No opening book, no tablebases, no network, no model calls.
 
@@ -36,12 +38,13 @@ tiny-chess-01 bounty (strongest engine in 4 KB, $500).
 
 | budget | trial 0 | trial 1 | trial 2 | mean Elo |
 |---|---|---|---|---|
-| 60,000 nodes | 1364 | 1364 | 1545 | **1424** |
-| 100,000 nodes | 1364 | 1451 | 1364 | 1393 |
+| 60,000 nodes (v1 engine) | 1364 | 1364 | 1545 | **1424** |
+| 100,000 nodes (v1 engine) | 1364 | 1451 | 1364 | 1393 |
+| 80,000 nodes (this engine) | 1364 | 1451 | 1654 | **1490** |
 
-60k was kept: higher mean Elo and ~2× faster (437–526 s per 6-game
-trial, ~1.7 s/move, ~33k NPS), well inside the 10 s/move and 1,800 s
-trial limits. 18 games at 60k: 10 wins / 3 draws / 5 losses.
+80k was kept: best mean Elo (1490 vs 1424 at 60k), 9 wins / 7 draws /
+2 losses in 18 games, no losses in trials 1–2. Trials took 739–932 s
+per 6 games (~3.5 s/move), inside the 10 s/move and 1,800 s trial limits.
 
 Perft verified against the standard suites (startpos, kiwipete, pos3–6)
 to depth 3–4, plus a 300-ply Zobrist key-consistency check.
